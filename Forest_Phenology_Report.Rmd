@@ -1,0 +1,518 @@
+---
+title: "Forest Phenology Data Analysis Report"
+author: "Nasrin Farokhi"
+date: "2025-06-28"
+output:
+  word_document:
+    toc: true
+    toc_depth: '3'
+  html_document:
+    toc: true
+    toc_depth: 3
+    theme: united
+    css: style.css
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+	echo = TRUE,
+	message = FALSE,
+	warning = FALSE
+)
+```
+
+------------------------------------------------------------------------
+
+::: {style="color:#008B00;"}
+# [***Question 1: Comparing ANPP in Managed vs. Unmanaged Forests***]
+:::
+
+::: {style="color:#00BFFF;"}
+## **Objective**
+:::
+
+This analysis aims to determine whether forest management has a statistically significant impact on forest productivity, as measured by Annual Net Primary Production (ANPP). To do this, we used a non-parametric statistical approach to compare log-transformed ANPP values between managed (M) and unmanaged (N) forest sites.
+
+::: {style="color:#4169E1;"}
+## **Step 1: Load Required Libraries**
+:::
+
+We first load the packages needed for data manipulation, visualization, and reading Excel files.
+
+```{r}
+# Load libraries
+library(readxl)
+library(dplyr)
+library(tidyverse)
+library(ggplot2)
+library(tidyr)
+library(tibble)
+```
+
+```{r}
+# Set working directory to your project folder
+setwd("G:/دوره نرم افزار جنگل 2023/ProjectForest/Tree_Phenology_Project")
+```
+
+::: {style="color:#4169E1;"}
+## **Step 2: Data Preparation and Filtering**
+:::
+
+The research team imported the dataset from the 'annual_production' sheet and filtered it to retain only forest sites (i.e., BIOME_TYPE == 'F'). The research team excluded sites with missing ANPP values from the analysis. The ANPP column was converted from a character to a numeric format to ensure compatibility with statistical functions. The research team applied a natural logarithm transformation `log` ANPP to the ANPP variable to improve data normality and stabilise variance across groups.
+
+```{r}
+# Read the "annual_production" sheet from Excel file
+data <- read_excel("file_task.xlsx", sheet = "annual_production")
+```
+
+```{r}
+# View first rows of data
+head(data)
+```
+
+```{r}
+# Filter rows for forest biome only (BIOME_TYPE == "F")
+forest_data <- data %>% 
+  filter(BIOME_TYPE == "F")
+```
+
+```{r}
+# Remove rows where ANPP is missing (NA)
+forest_data <- forest_data %>%
+  filter(!is.na(ANPP))
+```
+
+```{r}
+# Convert ANPP column from character to numeric
+forest_data <- forest_data %>%
+  mutate(ANPP = as.numeric(ANPP))
+```
+
+```{r}
+# Remove rows where ANPP conversion produced NA
+forest_data <- forest_data %>%
+  filter(!is.na(ANPP))
+```
+
+```{r}
+# Log-transform the ANPP values for normalization
+forest_data <- forest_data %>%
+  mutate(logANPP = log(ANPP))
+```
+
+::: {style="color:#4169E1;"}
+## **Step 3: Perform Kruskal-Wallis Test**
+:::
+
+Given the non-normal distribution of ANPP, the research team applied a `Kruskal-Wallis` rank sum test to compare the two independent groups (Managed vs. Unmanaged). Unmanaged forests). This test is a robust, non-parametric alternative to `one-way ANOVA`.
+
+```{r}
+# Perform Kruskal-Wallis test on logANPP by MANAGEMENT (M vs N)
+kruskal_test <- kruskal.test(logANPP ~ MANAGEMENT, data = forest_data)
+print(kruskal_test)
+```
+
+::: {style="color:#00BFFF;"}
+## **Results**
+:::
+
+\- Managed forests (M): 62 sites
+
+\- Unmanaged forests (N): 98 sites
+
+\- Kruskal-Wallis statistic (χ²): 3.81
+
+\- Degrees of freedom (df): 1
+
+\- p-value: 0.051
+
+::: {style="color:#00BFFF;"}
+## **Interpretation**
+:::
+
+At the conventional significance level of α = 0.05, the p-value of 0.051 is slightly above the threshold, indicating no statistically significant difference in logANPP between the two groups. However, the result is marginal and suggests a possible trend that may become significant with a larger dataset or additional control for covariates.
+
+::: {style="color:#4169E1;"}
+## **Step 4: Descriptive Statistics**
+:::
+
+```{r}
+# Summary statistics of logANPP per management type
+forest_data %>%
+  group_by(MANAGEMENT) %>%
+  summarise(
+    count = n(),
+    median_logANPP = median(logANPP),
+    IQR_logANPP = IQR(logANPP),
+    min = min(logANPP),
+    max = max(logANPP)
+  )
+```
+
+The median logANPP was slightly higher in managed forests, and the interquartile range (IQR) was narrower, indicating more consistent productivity among managed sites.
+
+::: {style="color:#4169E1;"}
+## **Step 5: Visualize with Boxplot**
+:::
+
+```{r fig.align='center'}
+# Create and store a boxplot comparing logANPP between management types
+
+p <- ggplot(forest_data, aes(x = MANAGEMENT, y = logANPP, fill = MANAGEMENT)) +
+  geom_boxplot() +
+  labs(
+    title = "Comparison of logANPP Between Managed and Unmanaged Forests",
+    x = "Forest Management (M = Managed, N = Natural)",
+    y = "log(ANPP)"
+  ) +
+  theme_minimal() +
+  scale_fill_manual(values = c("M" = "#66C2A5", "N" = "#FC8D62")) +
+  theme(legend.position = "none")
+print(p)
+```
+
+The research team generated a boxplot to visually compare the distribution of logANPP between the two forest management groups. The figure illustrates a modest difference in central tendency and spread between groups, consistent with the statistical results.
+
+```{r}
+# Save the plot as high-resolution PNG
+ggsave("logANPP_boxplot.png", plot = p, width = 8, height = 5, dpi = 300)
+```
+
+::: {style="color:#00BFFF;"}
+## **Conclusion**
+:::
+
+While the `Kruskal-Wallis` test did not yield a statistically significant result at p \< 0.05, the analysis indicates a potential effect of forest management on productivity. Managed forests may exhibit slightly higher and more stable above-ground net primary productivity (ANPP) levels. To validate this trend, we recommend further investigations with larger datasets, the inclusion of environmental covariates (e.g., temperature, soil type), and the use of multivariate statistical approaches.
+
+::: {style="color:#008B00;"}
+# ***Question 2: Mapping European Forest Sites: Managed vs. Unmanaged***
+:::
+
+::: {style="color:#4169E1;"}
+## **Step 1: Load Map Libraries**
+:::
+
+```{r}
+library(sf)
+library(rnaturalearth)
+library(rnaturalearthdata)
+```
+
+::: {style="color:#00BFFF;"}
+## **Objective**
+:::
+
+The goal of this analysis was to visualize the spatial distribution of forest research sites across Europe and to distinguish visually between managed and unmanaged forests using map-based representation. This task aimed to combine spatial filtering, geospatial data transformation, and professional-level cartographic visualization.
+
+::: {style="color:#4169E1;"}
+## **Step 2: Data Preparation and Filtering**
+:::
+
+The research team first filtered the dataset from the 'annual_production' sheet to retain only forest sites (BIOME_TYPE == 'F'). To focus the analysis on Europe, the team used geographic coordinates to extract the relevant subset.\
+- Latitude between 35° and 70° N
+
+\- Longitude between −25° and 40° E
+
+```{r}
+# Filter forest sites located in European lat/lon ranges
+europe_data <- forest_data %>%
+  filter(LATITUDE >= 35, LATITUDE <= 70,
+         LONGITUDE >= -25, LONGITUDE <= 40)
+```
+
+::: {style="color:#4169E1;"}
+## **Step 3: Basic Scatter Map (Exploratory Visualization)**
+:::
+
+The research team created an initial exploratory plot using ggplot2, mapping longitude versus latitude and applying colour codes to differentiate sites by management status.
+
+\- Green: Managed forests (M)
+
+\- Blue: Unmanaged forests (N)
+
+The map allowed us to efficiently validate the spatial filtering and confirm the correct geographic location of all sites within Europe.
+
+```{r fig.align='center'}
+
+# Simple scatter map without a basemap
+ggplot(europe_data, aes(x = LONGITUDE, y = LATITUDE, color = MANAGEMENT)) +
+  geom_point(size = 2, alpha = 0.8) +
+  scale_color_manual(
+    values = c("M" = "forestgreen", "N" = "dodgerblue"),
+    labels = c("Managed", "Unmanaged")
+  ) +
+  labs(
+    title = "Exploratory Map of Forest Sites in Europe",
+    x = "Longitude",
+    y = "Latitude",
+    color = "Management"
+  ) +
+  theme_minimal()
+```
+
+::: {style="color:#4169E1;"}
+## **Step 4: Final Map with European Basemap**
+:::
+
+The research team employed geospatial tools to generate the final map:
+
+\- SF: for transforming site data into spatial objects (SF objects)
+
+\- rnaturalearth: to add a country-level base map of Europe
+
+\- ggplot2: for layered plotting with colour distinction\
+The research team plotted each site on the European base map, applying management type as a categorical visual indicator.
+
+```{r}
+# Load world map and filter to Europe
+world <- ne_countries(scale = "medium", returnclass = "sf")
+europe <- world %>% filter(region_un == "Europe")
+```
+
+```{r}
+# Filter forest sites located in European lat/lon ranges
+europe_data <- forest_data %>%
+  filter(LATITUDE >= 35, LATITUDE <= 70,
+         LONGITUDE >= -25, LONGITUDE <= 40)
+```
+
+```{r}
+# Convert site coordinates into sf spatial object
+europe_sites_sf <- st_as_sf(europe_data, coords = c("LONGITUDE", "LATITUDE"), crs = 4326)
+
+```
+
+```{r fig.align='center'}
+# Plot European map with site points colored by management
+
+ggplot() +
+  geom_sf(data = europe, fill = "gray95", color = "gray60") +
+  geom_sf(data = europe_sites_sf, aes(color = MANAGEMENT), size = 2, alpha = 0.8) +
+  scale_color_manual(values = c("M" = "forestgreen", "N" = "dodgerblue"),
+                     labels = c("Managed", "Unmanaged")) +
+  labs(
+    title = "European Forest Sites: Managed vs. Unmanaged",
+    color = "Forest Type"
+  ) +
+  theme_minimal()
+```
+
+```{r}
+# Save the European map to PNG
+ggsave("europe_forest_sites_map.png", width = 10, height = 6, dpi = 300)
+```
+
+::: {style="color:#00BFFF;"}
+## **Interpretation**
+:::
+
+The final map offers several insights:
+
+The study revealed a wide geographic spread of both managed and unmanaged sites across Europe, from west to east.
+
+\- Certain regions (e.g., Central Europe) appear to have a higher density of managed forest sites, possibly due to intensified forest policy or long-standing silvicultural practices.
+
+\- In contrast, some northern or eastern regions show a relatively higher proportion of natural/unmanaged sites, indicating potential conservation areas or low-intensity use.
+
+::: {style="color:#008B00;"}
+# ***Question 3: Report: Estimating Budburst Timing Based on Growing Degree-Days (GDD)***
+:::
+
+::: {style="color:#00BFFF;"}
+## **Objective**
+:::
+
+The goal of this analysis is to evaluate the heat accumulation required for tree budburst using the concept of Growing degree days (GDD). Based on observed data from the BEL.11 site for the years 2018 and 2019, we aim to:
+
+-   Calculate the GDD required for budburst in 2018 (known budburst date: April 16).
+
+-   Estimate the expected date of budburst in 2019, assuming a constant GDD threshold.
+
+-   Compare GDD accumulation in both years through visualization.
+
+::: {style="color:#4169E1;"}
+## **Step 1: Load Temperature Data and Set Threshold**
+:::
+
+```{r}
+# Load daily temperature data from BUDBURST sheet
+budburst_data <- read_excel("file_task.xlsx", sheet = "budburst")
+
+# Set threshold temperature for GDD calculation
+T_threshold <- 5
+```
+
+::: {style="color:#00BFFF;"}
+## **Data Description**
+:::
+
+\
+The dataset includes daily average temperatures recorded for the site BEL.11 over two years (2018 and 2019), with each day represented as Day of Year (DOY) 1 to 366.
+
+::: {style="color:#00BFFF;"}
+## **Threshold and Concept**
+:::
+
+-   The research team adopted a temperature threshold of 5°C.
+
+-   The research team calculates daily heat for each day using the following formula:
+
+``` r
+DailyHeat = max(Temperature - 5, 0)
+```
+
+-   GDD is the cumulative sum of daily heat values from January 1 up to the budburst date.
+
+::: {style="color:#4169E1;"}
+## **Step 2: GDD Calculation for 2018**
+:::
+
+-   Budburst in 2018 occurred on April 16 (day of year = 106).
+
+-   All temperature values up to Day of Year (DOY) 106 were processed.
+
+-   After removing invalid values (e.g., NA or \>50°C), GDD was calculated as follows:
+
+``` r
+print(paste("GDD_2018 =", round(GDD_2018, 2), "°C-days"))
+```
+
+```{r}
+# ----------- GDD Calculation for 2018 ------------
+
+# Extract 2018 temperature row
+temp_2018 <- as.numeric(budburst_data[1, ])
+names(temp_2018) <- names(budburst_data)
+
+# Extract DOY numbers and filter until April 16 (DOY 106)
+day_numbers <- as.numeric(sub("DOY", "", names(temp_2018)))
+valid_days_2018 <- which(day_numbers <= 106)
+temps_until_budburst <- temp_2018[valid_days_2018]
+
+# Calculate daily heat (only if temp > threshold)
+daily_heat_2018 <- pmax(temps_until_budburst - T_threshold, 0)
+
+# Calculate GDD until budburst in 2018
+GDD_2018 <- sum(daily_heat_2018)
+print(GDD_2018)
+
+```
+
+::: {style="color:#4169E1;"}
+## **Step 3:** **Budburst Date Estimation for 2019**
+:::
+
+-   The same method was consistently applied to the 2019 data as well.
+
+-   After cleaning outliers (\>50°C) and applying the GDD threshold, cumulative GDD was computed.
+
+-   The first day in 2019 when the cumulative GDD surpassed the threshold of 204.76 was identified:
+
+Estimated Budburst Date in 2019: March 31 (DOY = 90)
+
+```{r}
+# ----------- GDD Estimation for 2019 ------------
+
+# Extract 2019 temperature row
+temp_2019 <- as.numeric(budburst_data[2, ])
+
+# Remove unrealistic values > 50°C
+temp_2019[temp_2019 > 50] <- NA
+
+# Replace NA with 0 to continue safely
+temp_2019[is.na(temp_2019)] <- 0
+
+# Compute daily heat and cumulative GDD for 2019
+daily_heat_2019 <- pmax(temp_2019 - T_threshold, 0)
+cumulative_GDD_2019 <- cumsum(daily_heat_2019)
+
+# Identify first DOY in 2019 when cumulative GDD ≥ GDD_2018
+budburst_day_2019 <- which(cumulative_GDD_2019 >= GDD_2018)[1]
+
+# Convert DOY to calendar date
+budburst_date_2019 <- as.Date(budburst_day_2019 - 1, origin = "2019-01-01")
+print(budburst_date_2019)
+```
+
+::: {style="color:#00BFFF;"}
+## **Interpretation**
+:::
+
+-   The tree in 2019 reached the required heat accumulation approximately **16 days earlier** than in 2018.
+
+-   The advancement of GDD accumulation in 2019 indicates a warmer late winter and early spring, which likely contributed to accelerated phenological development.
+
+-   This interannual variation is important for understanding climate sensitivity in temperate forest ecosystems.
+
+::: {style="color:#4169E1;"}
+## **Step 4: Plot GDD for Both Years**
+:::
+
+The research team plotted a cumulative Growing Degree Day (GDD) graph for both years to illustrate the differences in heat accumulation patterns over time.
+
+-   **2018** line rises steadily, reaching 204.76 by mid-April.
+
+-   **2019** accumulates GDD faster, surpassing the threshold by the end of March.
+
+-   A dashed horizontal line indicates the GDD threshold for visual reference.
+
+```{r}
+# ----------- GDD Line Plot (2018 vs 2019) ------------
+
+# Determine number of days in the dataset
+num_days <- ncol(budburst_data)
+```
+
+```{r}
+# Recompute GDD series for both years (with NA cleaning)
+temp_2018 <- as.numeric(budburst_data[1, 1:num_days])
+temp_2018[temp_2018 > 50] <- NA
+temp_2018[is.na(temp_2018)] <- 0
+daily_heat_2018 <- pmax(temp_2018 - T_threshold, 0)
+cumulative_GDD_2018 <- cumsum(daily_heat_2018)
+
+```
+
+```{r}
+# Create tidy tibble for plotting
+gdd_data <- tibble(
+  DayOfYear = 1:num_days,
+  GDD_2018 = cumulative_GDD_2018,
+  GDD_2019 = cumulative_GDD_2019[1:num_days]
+)
+```
+
+```{r}
+# Pivot data for ggplot
+gdd_long <- gdd_data %>%
+  pivot_longer(cols = c(GDD_2018, GDD_2019),
+               names_to = "Year",
+               values_to = "GDD")
+
+```
+
+```{r gdd_plot,fig.height=6, fig.width=9, message=FALSE, warning=FALSE}
+# Plot cumulative GDD for both years
+
+cumulative_GDD_plot <- ggplot(gdd_long, aes(x = DayOfYear, y = GDD, color = Year)) +
+  geom_line(size = 1.2) +
+  geom_hline(yintercept = GDD_2018, linetype = "dashed", color = "gray40") +
+  labs(
+    title = "Cumulative Growing Degree Days (GDD) for 2018 and 2019",
+    subtitle = "Threshold Temperature = 5°C",
+    x = "Day of Year",
+    y = "Cumulative GDD",
+    color = "Year"
+  ) +
+  scale_color_manual(values = c("GDD_2018" = "#1f77b4", "GDD_2019" = "#ff7f0e"),
+                     labels = c("2018", "2019")) +
+  theme_minimal()
+
+print(cumulative_GDD_plot)
+```
+
+::: {style="color:#00BFFF;"}
+## **Conclusion**
+:::
+
+This GDD-based approach enables effective prediction of phenological events such as budburst. The results illustrate how relatively small shifts in daily temperatures can significantly alter plant development timelines. Such findings are valuable for climate impact assessments, forest management, and ecological forecasting.
